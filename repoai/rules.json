@@ -1,0 +1,1179 @@
+{
+  "version": 1,
+  "source": "curated repo error templates + historical tickets",
+  "rules": [
+    {
+      "id": "R1001",
+      "title": "sync 失败 - 网络超时/无法连接",
+      "commands": [
+        "sync",
+        "init",
+        "selfupdate"
+      ],
+      "exceptions": [
+        "DownloadError",
+        "SyncError",
+        "RepoUnhandledExceptionError"
+      ],
+      "patterns": [
+        "timed? ?out",
+        "Could not resolve host",
+        "Connection refused",
+        "Connection timed out",
+        "unable to access",
+        "RPC failed",
+        "early EOF",
+        "The remote end hung up unexpectedly"
+      ],
+      "confidence": 0.7,
+      "admin": false,
+      "cause": "与 Gerrit/镜像服务器的网络连接异常（DNS、代理、防火墙或服务器负载）。",
+      "steps": [
+        "确认可以 ping/telnet 通 Gerrit 主机端口（DNS 异常时核对 /etc/hosts 与代理）",
+        "降低并发重试：repo sync -j2",
+        "若持续失败，检查 http_proxy/https_proxy 与 SSH 代理配置",
+        "离线/受限网络改用本地镜像：repo sync --reference <本地镜像路径>"
+      ],
+      "related": [
+        "R1002",
+        "FAQ:1003"
+      ]
+    },
+    {
+      "id": "R1002",
+      "title": "sync 失败 - manifest revision 冲突/不存在",
+      "commands": [
+        "sync",
+        "init",
+        "checkout",
+        "start"
+      ],
+      "exceptions": [
+        "ManifestInvalidRevisionError",
+        "SyncError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "revision conflict",
+        "ManifestInvalidRevisionError",
+        "couldn't find remote revision",
+        "Cannot find manifest entry",
+        "invalid revision",
+        "not our ref"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": "manifest 中某 project 的 revision 在远端不存在，或多个 project/本地分支指向冲突。",
+      "steps": [
+        "检查 .repo/manifests/default.xml 中对应 project 的 revision 配置",
+        "确认该分支/tag 已推送到远端：git ls-remote <remote> | grep <revision>",
+        "临时方案：repo sync -d 放弃本地分支重新对齐",
+        "长期方案：修正 manifest 中的 revision 配置并提交"
+      ],
+      "related": [
+        "R1001",
+        "FAQ:1002"
+      ]
+    },
+    {
+      "id": "R1003",
+      "title": "manifest 缺失或不可读",
+      "commands": [
+        "*"
+      ],
+      "exceptions": [
+        "NoManifestException"
+      ],
+      "patterns": [
+        "manifest missing or unreadable",
+        "NoManifestException",
+        "cannot obtain manifest",
+        "manifest '.*' not available"
+      ],
+      "confidence": 0.9,
+      "admin": false,
+      "cause": "当前目录不是 repo 工作区，或尚未执行 repo init / manifest 文件损坏。",
+      "steps": [
+        "确认当前目录在 repo 工作区内（存在 .repo/ 目录）",
+        "重新初始化：repo init -u <manifest-url> -m <manifest.xml>",
+        "manifest 损坏时可重跑 repo init（安全，会自动恢复）"
+      ],
+      "related": [
+        "R1004"
+      ]
+    },
+    {
+      "id": "R1004",
+      "title": "manifest XML 解析失败",
+      "commands": [
+        "*"
+      ],
+      "exceptions": [
+        "ManifestParseError"
+      ],
+      "patterns": [
+        "ManifestParseError",
+        "fatal: .*manifest.*parse",
+        "mismatched tag",
+        "not well-formed"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": "manifest XML 语法错误（手工修改引入，或 local_manifests 片段写坏）。",
+      "steps": [
+        "按报错中的行号检查 .repo/manifest.xml 指向的文件",
+        "逐个移出 .repo/local_manifests/*.xml 定位出问题的片段",
+        "修复后重新执行原命令"
+      ],
+      "related": [
+        "R1003"
+      ]
+    },
+    {
+      "id": "R1005",
+      "title": "upload 失败 - 无可上传分支",
+      "commands": [
+        "upload"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "UploadError"
+      ],
+      "patterns": [
+        "no branches ready for upload",
+        "no branches named .* ready for upload",
+        "no project has local branch"
+      ],
+      "confidence": 0.85,
+      "admin": false,
+      "cause": "当前工作区没有用 repo start 创建的本地分支，或分支上没有新 commit。",
+      "steps": [
+        "repo start <branch> <project> 创建开发分支",
+        "git commit 提交修改后再 repo upload",
+        "用 repo overview 查看哪些分支有未合入提交"
+      ],
+      "related": [
+        "R1006"
+      ]
+    },
+    {
+      "id": "R1006",
+      "title": "upload 失败 - commit-msg hook 缺失/无 Change-Id",
+      "commands": [
+        "upload",
+        "stage"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "UploadError",
+        "HookError"
+      ],
+      "patterns": [
+        "commit-msg hook",
+        "missing Change-Id",
+        "hook .* not found",
+        "HookError"
+      ],
+      "confidence": 0.85,
+      "admin": false,
+      "cause": "Gerrit 要求每个 commit 带 Change-Id，缺少 commit-msg hook 时无法生成。",
+      "steps": [
+        "安装 hook：cp <manifest 工程>/hooks/commit-msg .git/hooks/ && chmod +x .git/hooks/commit-msg",
+        "对已有 commit 补机 Change-Id：git commit --amend",
+        "重新 repo upload"
+      ],
+      "related": [
+        "R1007"
+      ]
+    },
+    {
+      "id": "R1007",
+      "title": "权限拒绝 / 认证失败",
+      "commands": [
+        "sync",
+        "upload",
+        "init",
+        "download"
+      ],
+      "exceptions": [
+        "GitAuthError",
+        "RepoExitError",
+        "RepoUnhandledExceptionError"
+      ],
+      "patterns": [
+        "[Pp]ermission denied",
+        "Permission denied \\(publickey\\)",
+        "authentication failed",
+        "[Aa]uthentication failed",
+        "not authorized",
+        "403 Forbidden",
+        "could not read Username",
+        "Permission denied \\(publickey",
+        "Authentication failed"
+      ],
+      "confidence": 0.8,
+      "admin": true,
+      "cause": "SSH 公钥/凭据未泥册或账号无库访问权限。",
+      "steps": [
+        "确认 ~/.ssh/config 与公钥已添加到 Gerrit 账号",
+        "测试：ssh -p <port> gerrit-host（Gerrit SSH 常用端口 29418）",
+        "若报错仍存在，联系管理员确认项目成员权限（本规则通常需要管理员介入）"
+      ],
+      "related": [
+        "R1001"
+      ]
+    },
+    {
+      "id": "R1008",
+      "title": "sync 失败 - Cannot checkout/fetch 单个 project",
+      "commands": [
+        "sync"
+      ],
+      "exceptions": [
+        "SyncError",
+        "RepoExitError",
+        "RepoUnhandledExceptionError",
+        "DownloadError"
+      ],
+      "patterns": [
+        "Cannot checkout",
+        "Cannot fetch",
+        "error.GitError: Cannot fetch",
+        "Unable to fully sync the tree",
+        "Exited sync due to fetch errors"
+      ],
+      "confidence": 0.6,
+      "admin": false,
+      "cause": "单个 project 拉取或检出失败，常见于 revision 变更、本地工作区脏、或服务器端只对部分分支可见。",
+      "steps": [
+        "单独重试失败的 project：repo sync -c <project-path>",
+        "repo status 查看工作区是否有未提交修改阻止切换",
+        "必要时 repo sync -d 丢弃本地分支对齐到 manifest revision"
+      ],
+      "related": [
+        "R1001",
+        "R1002",
+        "R1020"
+      ]
+    },
+    {
+      "id": "R1009",
+      "title": "upload 被 Gerrit 拒绝（push rule/权限/评审限制）",
+      "commands": [
+        "upload"
+      ],
+      "exceptions": [
+        "UploadError",
+        "RepoUnhandledExceptionError"
+      ],
+      "patterns": [
+        "remote rejected",
+        "pre-receive hook declined",
+        "proc-receive",
+        "changes not accepted",
+        "push rule"
+      ],
+      "confidence": 0.85,
+      "admin": false,
+      "cause": "Gerrit 服务端拒绝了本次推送：可能缺少推送权限、违反项目 push rule、分支受保护、或提交不满足评审要求（如缺少必须的评审人）。",
+      "steps": [
+        "查看输出中被拒的 ref 与原因行（remote rejected 后括号内的说明）",
+        "确认对该分支/项目有 Push 权限（Gerrit 项目权限页查看）",
+        "若提示 missing topic / commit message 格式，按 push rule 修正后重推",
+        "受保护分支需走评审合入，联系项目管理员"
+      ],
+      "related": [
+        "R1006",
+        "R1007"
+      ]
+    },
+    {
+      "id": "R1010",
+      "title": "init 失败 - manifest 地址或名称无效",
+      "commands": [
+        "init"
+      ],
+      "exceptions": [
+        "NoManifestException",
+        "DownloadError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "manifest url is required",
+        "manifest name \\(-m\\) is required",
+        "cannot obtain manifest",
+        "manifest \\'.*\\' not available",
+        "cannot connect to manifest server"
+      ],
+      "confidence": 0.85,
+      "admin": false,
+      "cause": "repo init 无法获取 manifest 仓库：URL 缺少协议/拼写错误、manifest 文件名不存在于该仓库、或 manifest 服务器不可达。",
+      "steps": [
+        "检查 -u 是否为完整 URL（ssh:// 或 https:// 开头）",
+        "检查 -m 文件确实存在于 manifest 仓库根目录",
+        "确认 Gerrit 域名可达（必要时配置 /etc/hosts 或代理）"
+      ],
+      "related": [
+        "R1001",
+        "R1023"
+      ]
+    },
+    {
+      "id": "R1011",
+      "title": "repo 工具版本/分支设置无效（--repo-rev）",
+      "commands": [
+        "init",
+        "selfupdate",
+        "sync"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "RepoUnhandledExceptionError"
+      ],
+      "patterns": [
+        "double check your --repo-rev",
+        "Cannot fetch repo tool"
+      ],
+      "confidence": 0.85,
+      "admin": false,
+      "cause": "--repo-rev 指定的分支/标签在 repo 工具仓库中不存在，或仓库中该 ref 不可用（如尚未推送到内网镜像）。",
+      "steps": [
+        "确认目标分支已推送到 --repo-url 指向的仓库：git ls-remote <repo-url> | grep <rev>",
+        "内网环境先确认镜像仓库已同步该分支",
+        "去掉 --repo-rev 回退默认分支验证网络与镜像本身"
+      ],
+      "related": [
+        "R1024"
+      ]
+    },
+    {
+      "id": "R1012",
+      "title": "smart sync 不可用（未配置 manifest server）",
+      "commands": [
+        "sync"
+      ],
+      "exceptions": [
+        "RepoExitError"
+      ],
+      "patterns": [
+        "cannot smart sync",
+        "smart sync override",
+        "no manifest server defined"
+      ],
+      "confidence": 0.9,
+      "admin": false,
+      "cause": "使用了 smart sync（如 --prune/--smart-sync 相关选项），但当前工作区初始化时未配置 manifest server（--manifest-server）。",
+      "steps": [
+        "不需要该能力：去掉 smart sync 相关选项，使用普通 repo sync",
+        "需要该能力：repo init --manifest-server=<url> 重新初始化",
+        "清理残留状态可删除 .repo/manifests 下的 override 文件后重新 init"
+      ],
+      "related": []
+    },
+    {
+      "id": "R1013",
+      "title": "project 处于 detached HEAD / 无本地分支",
+      "commands": [
+        "checkout",
+        "download",
+        "upload",
+        "sync"
+      ],
+      "exceptions": [
+        "NoSuchProjectError",
+        "RepoExitError",
+        "GitError"
+      ],
+      "patterns": [
+        "has a detached HEAD",
+        "no project has local branch",
+        "does not track any remote branches",
+        "no project has branch"
+      ],
+      "confidence": 0.85,
+      "admin": false,
+      "cause": "操作要求本地分支，但项目处于游离 HEAD（如刚 download 了 patch、或未用 repo start 创建本地分支）。",
+      "steps": [
+        "需要本地分支：repo start <branch> <project>",
+        "游离 HEAD 上有提交：先 repo start 指定分支，或 git switch -c 保存",
+        "确认 --current-branch / 分支名拼写正确"
+      ],
+      "related": [
+        "R1005"
+      ]
+    },
+    {
+      "id": "R1014",
+      "title": "参数歧义：匹配到过多 project 或分支",
+      "commands": [
+        "sync",
+        "upload",
+        "checkout",
+        "start"
+      ],
+      "exceptions": [
+        "NoSuchProjectError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "matches too many projects",
+        "ambiguous argument"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": "给定的路径/名称不唯一，无法确定操作哪个 project。",
+      "steps": [
+        "使用更精确的项目路径（manifest 中的 path 属性）",
+        "在目标项目目录内执行命令，或先 repo list 确认真实路径"
+      ],
+      "related": [
+        "R1021"
+      ]
+    },
+    {
+      "id": "R1015",
+      "title": "本地未提交修改阻止项目删除/切换",
+      "commands": [
+        "sync",
+        "checkout"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "SyncError"
+      ],
+      "patterns": [
+        "Cannot remove project: uncommitted",
+        "Failed to delete obsolete checkout",
+        "would be overwritten by checkout",
+        "local changes would be lost"
+      ],
+      "confidence": 0.85,
+      "admin": false,
+      "cause": "manifest 中项目被移除/路径变更需要删除旧检出，或分支切换，但工作区存在未提交修改。",
+      "steps": [
+        "先 git status 检查该项目的修改",
+        "不需要保留：git checkout -- . 或 git clean -fd 后重试",
+        "需要保留：git stash 后重试，或手动备份修改"
+      ],
+      "related": [
+        "R1020"
+      ]
+    },
+    {
+      "id": "R1016",
+      "title": "git 版本过低或不满足要求",
+      "commands": [
+        "*"
+      ],
+      "exceptions": [
+        "RepoExitError"
+      ],
+      "patterns": [
+        "git .* or later required",
+        "unable to detect git version"
+      ],
+      "confidence": 0.9,
+      "admin": false,
+      "cause": "当前 git 版本低于 repo 要求（≥1.9.1，部分功能要求更高）。",
+      "steps": [
+        "git --version 查看当前版本",
+        "加载更高版本 git：如环境用 module/venv，或安装到用户目录后调整 PATH",
+        "避免使用过老的系统自带 git"
+      ],
+      "related": []
+    },
+    {
+      "id": "R1017",
+      "title": "manifest server 连接/RPC 失败",
+      "commands": [
+        "sync",
+        "init"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "NoManifestException"
+      ],
+      "patterns": [
+        "manifest server RPC call failed",
+        "can\\'t search revision"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": "需要访问 manifest server（smart sync / manifest 搜索）时 RPC 调用失败——服务地址配置错误或服务器异常。",
+      "steps": [
+        "repo init --manifest-server=<url> 检查配置是否正确",
+        "curl/telnet 确认 manifest server 可达",
+        "临时改用普通 repo sync（不依赖 manifest server）"
+      ],
+      "related": [
+        "R1012"
+      ]
+    },
+    {
+      "id": "R1018",
+      "title": "本地 manifest 片段不支持或写入失败",
+      "commands": [
+        "init",
+        "sync"
+      ],
+      "exceptions": [
+        "ManifestParseError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "is not supported; put local manifests",
+        "cannot write manifest",
+        "is different in .* vs"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": ".repo/local_manifests 中的文件位置/格式不正确，或 smart sync 写回 manifest 时失败。",
+      "steps": [
+        "本地片段必须放在 .repo/local_manifests/*.xml 且为合法 XML",
+        "用 xmllint --noout .repo/local_manifests/*.xml 检查语法",
+        "smart sync 写入失败：确认 .repo/manifests 可写、磁盘未满"
+      ],
+      "related": [
+        "R1003",
+        "R1004",
+        "R1012"
+      ]
+    },
+    {
+      "id": "R1019",
+      "title": "download / cherry-pick patch 应用失败",
+      "commands": [
+        "download",
+        "cherry-pick"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "RepoUnhandledExceptionError"
+      ],
+      "patterns": [
+        "cannot abandon",
+        "Failed to retrieve old commit message",
+        "Failed to update commit message"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": "Gerrit patch 下载到本地时冲突或状态异常（已有旧版本 patch、冲突、或游离分支状态异常）。",
+      "steps": [
+        "repo download -c 重试（清除本地旧引用状态）",
+        "先手动 git fetch <change-ref> 确认对象可取回",
+        "若提示 abandon 失败：确认 change 未被合并/废弃"
+      ],
+      "related": [
+        "R1005"
+      ]
+    },
+    {
+      "id": "R1020",
+      "title": "工作区脏/冲突阻止操作",
+      "commands": [
+        "sync",
+        "checkout",
+        "start",
+        "rebase"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "RepoUnhandledExceptionError"
+      ],
+      "patterns": [
+        "would be overwritten by checkout",
+        "local changes",
+        "uncommitted",
+        "not a clean tree",
+        "rebase already started",
+        "cannot rebase"
+      ],
+      "confidence": 0.6,
+      "admin": false,
+      "cause": "本地未提交修改或进行中的 rebase 阻止了切换/同步。",
+      "steps": [
+        "repo status -j8 定位脏的 project",
+        "提交或暂存：git stash / git commit",
+        "rebase 卡住时 git rebase --abort 后重试"
+      ],
+      "related": [
+        "R1008"
+      ]
+    },
+    {
+      "id": "R1021",
+      "title": "项目不存在/当前目录无项目",
+      "commands": [
+        "*"
+      ],
+      "exceptions": [
+        "NoSuchProjectError",
+        "InvalidProjectGroupsError"
+      ],
+      "patterns": [
+        "project .* not found",
+        "no project in current directory",
+        "project group must be enabled"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": "路径不属于任何 manifest project，或该 project 的 groups 不匹配当前启用组。",
+      "steps": [
+        "repo list | grep <关键字> 确认 project 名/路径",
+        "repo init -g <groups> 调整启用的项目组后 repo sync",
+        "在子目录下执行时确认目录存在且已 checkout"
+      ],
+      "related": [
+        "R1003"
+      ]
+    },
+    {
+      "id": "R1022",
+      "title": "复制/链接失败（copyfile/linkfile）",
+      "commands": [
+        "sync"
+      ],
+      "exceptions": [
+        "ManifestInvalidPathError",
+        "RepoUnhandledExceptionError"
+      ],
+      "patterns": [
+        "Cannot copy file",
+        "Cannot symlink",
+        "Cannot extract archive"
+      ],
+      "confidence": 0.7,
+      "admin": false,
+      "cause": "manifest 的 copyfile/linkfile 目标冲突，或目标位置已被其他文件占用。",
+      "steps": [
+        "检查报错提示的目标路径是否已存在非预期文件",
+        "删除冲突文件后重新 repo sync",
+        "manifest 配置问题反馈给 manifest 维护者"
+      ],
+      "related": [
+        "R1004"
+      ]
+    },
+    {
+      "id": "R1023",
+      "title": "仓库不存在/404",
+      "commands": [
+        "sync",
+        "init"
+      ],
+      "exceptions": [
+        "DownloadError"
+      ],
+      "patterns": [
+        "[Nn]ot found",
+        "404",
+        "Repository not found",
+        "fatal: repository .* not found",
+        "project .* does not exist"
+      ],
+      "confidence": 0.75,
+      "admin": true,
+      "cause": "manifest 引用的仓库在服务器不存在（路径变更、权限不可见或镜像未同步）。",
+      "steps": [
+        "确认仓库 URL 在 Gerrit 上存在且当前账号可见",
+        "使用镜像的环境确认镜像已同步该库",
+        "需要管理员确认可见性策略"
+      ],
+      "related": [
+        "R1007"
+      ]
+    },
+    {
+      "id": "R1024",
+      "title": "repo 工具自身更新失败",
+      "commands": [
+        "selfupdate",
+        "sync"
+      ],
+      "exceptions": [
+        "RepoExitError",
+        "RepoUnhandledExceptionError",
+        "DownloadError"
+      ],
+      "patterns": [
+        "can't update repo",
+        "Cannot fetch repo tool",
+        "repo: error:.*too old"
+      ],
+      "confidence": 0.8,
+      "admin": true,
+      "cause": ".repo/repo 更新失败，多为网络或本地对 .repo/repo 的手工修改导致。",
+      "steps": [
+        "删除本地对 .repo/repo 的修改：cd .repo/repo && git checkout .",
+        "重试 repo sync（会重新拉取 repo 工具源码）",
+        "仍失败则重新 repo init"
+      ],
+      "related": [
+        "R1001"
+      ]
+    },
+    {
+      "id": "R1025",
+      "title": "本地分支冲突需对齐（repo sync -d 场景）",
+      "commands": [
+        "sync"
+      ],
+      "exceptions": [
+        "SyncError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "attempting to smart sync",
+        "divergent",
+        "has no upstream",
+        "is behind"
+      ],
+      "confidence": 0.6,
+      "admin": false,
+      "cause": "本地分支与远端分支状态分歧，sync 需要决定对齐策略。",
+      "steps": [
+        "确认本地分支上的提交是否需要保留（需要：git rebase origin/<branch>）",
+        "不需要保留：repo sync -d 丢弃本地提交并与 manifest 对齐",
+        "频繁分歧建议改用 Gerrit 评审流（repo upload）而非本地分支长期开发"
+      ],
+      "related": [
+        "R1002"
+      ]
+    },
+    {
+      "id": "R1026",
+      "title": "git 通用命令失败（非网络原因）",
+      "commands": [
+        "*"
+      ],
+      "exceptions": [
+        "GitError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "fatal: ambiguous",
+        "fatal: not a git repository",
+        "git failures"
+      ],
+      "confidence": 0.5,
+      "admin": false,
+      "cause": "底层 git 命令返回异常但错误信息未被规则库精确定位。常见于工作区状态异常（中断残留锁文件、仓库损坏）。",
+      "steps": [
+        "进入报错项目目录运行 git status 查看具体 git 错误",
+        "存在 index.lock 残留：确认无 git 进程后删除 .git/index.lock",
+        "怀疑对象库损坏：git fsck 检查，必要时重新 sync 该项目"
+      ],
+      "related": []
+    },
+    {
+      "id": "R1027",
+      "title": "forall 失败 - 部分 project 命令返回非零",
+      "commands": [
+        "forall"
+      ],
+      "exceptions": [],
+      "patterns": [
+        "Aborting due to previous error",
+        "forall: unhandled error"
+      ],
+      "confidence": 0.75,
+      "admin": false,
+      "cause": "repo forall 对每个 project 执行同一命令，任一 project 返回非零即整体失败；错误被分散在各 project 输出里，容易漏看是哪个、哪条命令失败。",
+      "steps": [
+        "加 --project-header 重跑，输出里定位是哪个 project 报错",
+        "用 -p 打印项目头，或用 repo forall -c 'echo $REPO_PROJECT' 确认覆盖范围",
+        "缩小范围复现：repo forall <可疑project> -c '<原命令>'",
+        "命令里引用项目路径用 $REPO_PATH / $REPO_PROJECT，勿写死相对路径（forall 下 cwd 是每个 project 根）"
+      ],
+      "related": [
+        "R1021",
+        "R1026"
+      ]
+    },
+    {
+      "id": "R1028",
+      "title": "forall 失败 - 内层命令不存在或 shell 语法错误",
+      "commands": [
+        "forall"
+      ],
+      "exceptions": [],
+      "patterns": [
+        "not found",
+        "No such file or directory",
+        "syntax error",
+        "unexpected EOF while looking for matching"
+      ],
+      "confidence": 0.6,
+      "admin": false,
+      "cause": "-c 里的命令在部分/全部 project 中不存在，或引号未正确转义（forall 把整串交给 sh -c）。",
+      "steps": [
+        "先用单个 project 验证：repo forall . -c '你的命令'",
+        "命令含空格/引号时用单引号包裹整体、内部用双引号",
+        "依赖项目自带脚本时，确认该 project 已 checkout（未同步的 project 里文件不存在）"
+      ],
+      "related": [
+        "R1027"
+      ]
+    },
+    {
+      "id": "R1029",
+      "title": "forall 无输出/未匹配到任何 project",
+      "commands": [
+        "forall",
+        "list"
+      ],
+      "exceptions": [
+        "NoSuchProjectError"
+      ],
+      "patterns": [
+        "no projects matched",
+        "project .* not found",
+        "no project in current directory"
+      ],
+      "confidence": 0.7,
+      "admin": false,
+      "cause": "给定的 project 参数/groups 过滤后为空集，forall 循环零次，看起来像“没反应”。",
+      "steps": [
+        "先 repo list 看启用了哪些 project；groups 过滤用 repo init -g <groups>",
+        "在子目录执行时去掉路径参数、或回到工作区根",
+        "确认拼写：repo list | grep <关键字>"
+      ],
+      "related": [
+        "R1021",
+        "R1027"
+      ]
+    },
+    {
+      "id": "R1030",
+      "title": "start/checkout 失败 - 目标分支不存在",
+      "commands": [
+        "start",
+        "checkout"
+      ],
+      "exceptions": [
+        "MissingBranchError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "no project has branch",
+        "cannot checkout",
+        "cannot start"
+      ],
+      "confidence": 0.7,
+      "admin": false,
+      "cause": "repo checkout 的分支在任何 project 都不存在，或 repo start 的 manifest revision 拼写错误。",
+      "steps": [
+        "repo branches 看本地已有分支；repo branch 看当前项目分支",
+        "repo start 的 <branch> 需基于已同步的 revision，先确认 repo manifest 里的 revision 存在",
+        "误用 checkout 切到远端 ref：改用 repo start <revision> --all 或具体 project"
+      ],
+      "related": [
+        "R1013",
+        "R1014"
+      ]
+    },
+    {
+      "id": "R1031",
+      "title": "rebase/上传前 - detached HEAD 或无上游跟踪",
+      "commands": [
+        "rebase",
+        "upload",
+        "diff",
+        "stage",
+        "status"
+      ],
+      "exceptions": [
+        "UploadError"
+      ],
+      "patterns": [
+        "has a detached HEAD",
+        "does not track any remote branches",
+        "HEAD not currently on a branch",
+        "You are in a detached HEAD state"
+      ],
+      "confidence": 0.72,
+      "admin": false,
+      "cause": "project 处于 detached HEAD（常见于 repo sync 后未 repo start），rebase/upload 无处落脚。",
+      "steps": [
+        "repo start <本地分支名> . 先建分支再操作",
+        "repo status 确认当前分支；repo info 看跟踪的远端",
+        "已在游离态提交过：git branch <名字> 抢救当前 commit 后再 repo start 切换"
+      ],
+      "related": [
+        "R1013",
+        "R1005"
+      ]
+    },
+    {
+      "id": "R1032",
+      "title": "abandon/prune 拒绝 - 分支尚有未合并改动或当前占用",
+      "commands": [
+        "abandon",
+        "prune",
+        "branches"
+      ],
+      "exceptions": [
+        "AbandonError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "is not fully merged",
+        "cannot abandon",
+        "checked out",
+        "your current branch"
+      ],
+      "confidence": 0.68,
+      "admin": false,
+      "cause": "要删的分支未完全合并进上游，或正是当前 checkout 的分支，repo 主动拒绝以防丢改动。",
+      "steps": [
+        "确认是有意丢弃：repo abandon -f <branch>",
+        "先 repo start 切到别的分支再 abandon 目标分支",
+        "prune 只删已合并 topic，未合并的正常不会被删——若想强删用 abandon -f"
+      ],
+      "related": [
+        "R1015",
+        "R1013"
+      ]
+    },
+    {
+      "id": "R1033",
+      "title": "git index.lock 残留导致操作失败",
+      "commands": [
+        "*"
+      ],
+      "exceptions": [
+        "GitError"
+      ],
+      "patterns": [
+        "index\\.lock",
+        "Another git process seems to be running",
+        "fatal: Unable to create .*index\\.lock"
+      ],
+      "confidence": 0.8,
+      "admin": false,
+      "cause": "上次 git 操作被强杀/崩溃，或多个 repo/git 进程并发，遗留 .git/index.lock。",
+      "steps": [
+        "确认无其它 git/repo 在跑（ps aux | grep git）",
+        "删除对应 project 的 .git/index.lock 后重试",
+        "并发场景：避免同时对该 project 跑 repo sync 与手敲 git 命令"
+      ],
+      "related": [
+        "R1026",
+        "FAQ:1012"
+      ]
+    },
+    {
+      "id": "R1034",
+      "title": "本地未提交/未跟踪文件阻止切换（start/wipe 场景）",
+      "commands": [
+        "start",
+        "wipe",
+        "rebase",
+        "stage"
+      ],
+      "exceptions": [
+        "CheckoutCommandError",
+        "RepoExitError"
+      ],
+      "patterns": [
+        "untracked working tree file",
+        "local changes would be overwritten",
+        "Please, commit your changes or stash them",
+        "error: Your local changes"
+      ],
+      "confidence": 0.68,
+      "admin": false,
+      "cause": "start/wipe/rebase 前工作区有未提交改动或未跟踪文件与目标冲突，repo 拒绝以防丢数据。（sync/checkout 场景由姊妹规则 R1015 覆盖。）",
+      "steps": [
+        "repo status 找出脏文件；确认可丢弃再 git clean -fd（⚠ 删除动作，先自行确认）",
+        "要保留：先 git stash 或提交，再重试操作",
+        "个别项目反复出现：检查是否有构建产物未被 .gitignore 忽略"
+      ],
+      "related": [
+        "R1015",
+        "R1020",
+        "FAQ:1008"
+      ]
+    },
+    {
+      "id": "R1035",
+      "title": "非 git 仓库目录 / .git 损坏",
+      "commands": [
+        "status",
+        "forall",
+        "diff",
+        "sync"
+      ],
+      "exceptions": [
+        "GitError"
+      ],
+      "patterns": [
+        "not a git repository",
+        "not a valid git repo",
+        "fatal: .*\\.git.* (does not exist|invalid)"
+      ],
+      "confidence": 0.72,
+      "admin": false,
+      "cause": "project 未成功 checkout（.git 缺失），或 .git 目录被误删/损坏；forall 在未同步项目里跑 git 命令尤为常见。",
+      "steps": [
+        "repo sync <project> 重新拉取该项目的 .git/objects",
+        "确认磁盘未写满（df -h）、目录权限正常（ls -ld .git）",
+        ".git 损坏严重时可删该 project 目录后 repo sync 重拉（源码不丢，objects 重建）"
+      ],
+      "related": [
+        "R1008",
+        "R1027"
+      ]
+    },
+    {
+      "id": "R1036",
+      "title": "cherry-pick/download 冲突需手工解决",
+      "commands": [
+        "cherry-pick",
+        "download"
+      ],
+      "exceptions": [
+        "GitError"
+      ],
+      "patterns": [
+        "CONFLICT \\(",
+        "could not apply",
+        "fix conflicts and then commit",
+        "cherry-pick is already in progress"
+      ],
+      "confidence": 0.72,
+      "admin": false,
+      "cause": "下载的 patch 与当前分支存在改动重叠，git 无法自动合并。",
+      "steps": [
+        "打开冲突文件手工解决，git add 后 git cherry-pick --continue",
+        "想放弃：git cherry-pick --abort（回到操作前，安全）",
+        "反复冲突：先 repo sync 让本地基线与目标分支对齐再 download"
+      ],
+      "related": [
+        "R1019",
+        "R1031"
+      ]
+    },
+    {
+      "id": "R1037",
+      "title": "manifest 命令失败 - 片段/结构不合法",
+      "commands": [
+        "manifest",
+        "init",
+        "sync"
+      ],
+      "exceptions": [
+        "ManifestParseError",
+        "ManifestInvalidPathError"
+      ],
+      "patterns": [
+        "no manifest found",
+        "invalid path",
+        "cannot resolve revision",
+        "ManifestParseError"
+      ],
+      "confidence": 0.7,
+      "admin": false,
+      "cause": "本地 manifest 片段（local_manifests）语法/路径不合法，或 manifest 仓库本身未同步到位。",
+      "steps": [
+        "repo manifest -o - 打印合并后的 manifest 定位问题片段",
+        "检查 .repo/local_manifests/*.xml 是否 XML 合法、path 是否越界",
+        "repo init 重新指定正确 manifest 后 repo sync"
+      ],
+      "related": [
+        "R1003",
+        "R1004",
+        "R1018"
+      ]
+    },
+    {
+      "id": "R1038",
+      "title": "smartsync 回退全量 / 无 manifest server",
+      "commands": [
+        "smartsync",
+        "sync"
+      ],
+      "exceptions": [
+        "SmartSyncError"
+      ],
+      "patterns": [
+        "no manifest server",
+        "manifest server is not configured",
+        "SmartSyncError"
+      ],
+      "confidence": 0.65,
+      "admin": false,
+      "cause": "repo smartsync 依赖 manifest_server 提供“哪些 project 变了”的信息，未配置或连不上时退化为全量同步。",
+      "steps": [
+        "确认 manifest 里配置了 manifest_server；没有则用普通 repo sync",
+        "内网镜像环境多半没有 manifest server，直接用 repo sync 即可",
+        "偶发 RPC 失败按 R1017 排查网络"
+      ],
+      "related": [
+        "R1012",
+        "R1017"
+      ]
+    },
+    {
+      "id": "R1039",
+      "title": "gc/prune 报项目仍活跃或有未合并改动",
+      "commands": [
+        "gc",
+        "prune",
+        "abandon"
+      ],
+      "exceptions": [
+        "RepoExitError"
+      ],
+      "patterns": [
+        "still has",
+        "not fully merged",
+        "cannot prune",
+        "in use"
+      ],
+      "confidence": 0.6,
+      "admin": false,
+      "cause": "repo gc/prune 出于安全跳过仍被分支/项目引用的对象，属正常保护而非错误。",
+      "steps": [
+        "repo abandon 掉确已完成的分支后再 gc",
+        "gc 是优化项，跳过不影响功能；磁盘紧张时手动对单个大 project git gc",
+        "repo prune 只清已合并 topic，未清的说明还没合并"
+      ],
+      "related": [
+        "R1032"
+      ]
+    },
+    {
+      "id": "R1040",
+      "title": "diff/diffmanifests/grep 用法或参数错误",
+      "commands": [
+        "diff",
+        "diffmanifests",
+        "grep",
+        "info",
+        "overview"
+      ],
+      "exceptions": [
+        "GrepCommandError",
+        "InvalidArgumentsError"
+      ],
+      "patterns": [
+        "ambiguous argument",
+        "cannot combine --cached and --revision",
+        "can't search revision",
+        "fatal: bad revision"
+      ],
+      "confidence": 0.62,
+      "admin": false,
+      "cause": "diff/grep 的 revision/参数组合不合法，或引用了不存在的 ref。",
+      "steps": [
+        "确认引用的分支/commit 存在：git -C <project> log --oneline -5",
+        "grep 不能同时用 --cached 与 --revision，二选一",
+        "diff 想看未提交改动直接 repo diff（不带参数）；跨项目用 repo diffmanifests 比较两份 manifest"
+      ],
+      "related": [
+        "R1026"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "source": "curated FAQ + repo error templates",
+  "entries": [
+    {
+      "id": "1001",
+      "title": "如何只同步当前模块（部分同步）",
+      "body": "repo sync <project-path> 只同步指定项目；repo sync 同步全部项目。部分同步不会更新其它 project 的 revision。也可用 repo sync -c 只更新当前 project。与全量同步的区别：全量会遍历 manifest 中所有 project，部分同步只处理给定路径。",
+      "tags": [
+        "sync",
+        "部分同步",
+        "模块",
+        "project"
+      ]
+    },
+    {
+      "id": "1002",
+      "title": "manifest revision 冲突排查步骤",
+      "body": "现象 error: Cannot checkout project ... revision conflict。步骤 1 检查 .repo/manifests/default.xml 中对应 project 的 revision；2 确认两个 project 是否指向冲突分支；3 临时方案 repo sync -d 后重新同步；4 长期方案修正 manifest revision 配置。",
+      "tags": [
+        "manifest",
+        "revision",
+        "conflict",
+        "sync",
+        "冲突"
+      ]
+    },
+    {
+      "id": "1003",
+      "title": "同步超时/网络失败怎么办",
+      "body": "降低并发 repo sync -j2；确认 Gerrit 主机可达；检查 http_proxy/ssh 代理；离线或受限网络使用本地镜像 repo sync --reference <本地镜像路径>。",
+      "tags": [
+        "sync",
+        "超时",
+        "timeout",
+        "网络",
+        "mirror"
+      ]
+    },
+    {
+      "id": "1004",
+      "title": "upload 提示 no branches ready for upload",
+      "body": "需要先 repo start <branch> <project> 创建本地分支并 git commit 后再 repo upload。用 repo overview 查看有哪些分支有未合并提交。",
+      "tags": [
+        "upload",
+        "分支",
+        "branch",
+        "commit"
+      ]
+    },
+    {
+      "id": "1005",
+      "title": "缺少 commit-msg hook / Change-Id",
+      "body": "Gerrit 要求每个 commit 带 Change-Id。安装 hook：cp <manifest项目>/hooks/commit-msg .git/hooks/ 并 chmod +x。对已有 commit 用 git commit --amend 补 Change-Id。",
+      "tags": [
+        "upload",
+        "commit-msg",
+        "Change-Id",
+        "hook",
+        "gerrit"
+      ]
+    },
+    {
+      "id": "1006",
+      "title": "manifest missing or unreadable 怎么办",
+      "body": "当前目录不是 repo 工作区或未 repo init。确认存在 .repo 目录，重新 repo init -u <url> -m <manifest>。manifest 损坏可安全重跑 repo init。",
+      "tags": [
+        "manifest",
+        "init",
+        "missing"
+      ]
+    },
+    {
+      "id": "1007",
+      "title": "权限拒绝 Permission denied publickey",
+      "body": "SSH 公钥未注册或无库访问权限。确认 ~/.ssh/config 与公钥已加到 Gerrit，ssh -p <port> gerrit 测试；仍失败联系管理员确认项目成员权限。",
+      "tags": [
+        "权限",
+        "permission",
+        "ssh",
+        "publickey",
+        "gerrit"
+      ]
+    },
+    {
+      "id": "1008",
+      "title": "工作区脏导致 sync/checkout 失败",
+      "body": "本地未提交修改阻止切换。repo status -j8 定位脏 project，git stash 或 git commit 保存；rebase 卡住 git rebase --abort 后重试。",
+      "tags": [
+        "sync",
+        "checkout",
+        "脏",
+        "uncommitted",
+        "stash",
+        "rebase"
+      ]
+    },
+    {
+      "id": "1009",
+      "title": "用本地参考库加速 init/sync（--reference / --mirror）",
+      "body": "团队内多台机器重复全量下载时，先在一台机器 repo init --mirror <url> 建本地参考库，其它机器 repo init --reference=<参考库路径> 或直接 repo sync --reference=<路径>，走硬链而非网络。参考库需定期 sync 保持新鲜。",
+      "tags": [
+        "init",
+        "mirror",
+        "reference",
+        "sync",
+        "加速"
+      ]
+    },
+    {
+      "id": "1010",
+      "title": "关闭 AI 辅助与诊断提示",
+      "body": "ai.enabled=false 关闭全部 AI 命令与自动诊断，回到原有行为；ai.autoHint=false 仅关闭错误后自动追加诊断。可写入 ~/.repoconfig/config。",
+      "tags": [
+        "ai",
+        "关闭",
+        "disable",
+        "config",
+        "hint"
+      ]
+    },
+    {
+      "id": "1011",
+      "title": "upload 被 Gerrit 拒绝怎么排查",
+      "body": "输出中 remote rejected 后括号内就是拒绝原因。常见：缺少 Push 权限（联系项目管理员开通）；push rule 校验失败（如 commit message 格式、topic 必填）；受保护分支不可直推（需评审合入）。先看完整 remote: 行，再对照规则 R1009。",
+      "tags": [
+        "upload",
+        "rejected",
+        "gerrit",
+        "权限",
+        "push"
+      ]
+    },
+    {
+      "id": "1012",
+      "title": "index.lock 残留或 git 状态异常处理",
+      "body": "git 报 index.lock 存在时，先确认没有正在运行的 git 进程（ps aux | grep git），再删除项目 .git/index.lock。git fsck 报损坏时，最稳妥的方式是删除该 project 目录后 repo sync <path> 重新检出。",
+      "tags": [
+        "index.lock",
+        "git",
+        "fsck",
+        "损坏",
+        "sync"
+      ]
+    },
+    {
+      "id": "1013",
+      "title": "repo forall 批量操作怎么写才稳",
+      "body": "repo forall [projects] -c '<命令>' 在每个 project 根目录用 sh -c 执行。要点：用 $REPO_PROJECT/$REPO_PATH/$REPO_REMOTE 环境变量代替硬编码；加 -p 或 --project-header 标注是哪个项目；任一项目失败整体退出码非零，排查时用 --project-header 定位；缩小调试范围可 repo forall <单个project> -c '...'。注意 cwd 是当前 project，不是工作区根。",
+      "tags": [
+        "forall",
+        "批量",
+        "脚本",
+        "REPO_PROJECT",
+        "foreach"
+      ]
+    },
+    {
+      "id": "1014",
+      "title": "detached HEAD（游离头指针）怎么办",
+      "body": "repo sync 后 project 常处于 detached HEAD，此时 rebase/upload 会报“detached HEAD / does not track remote”。用 repo start <本地分支名> [project...] 基于当前 revision 建并切到本地分支即可正常提交、上传。已在游离态误提交：先 git branch 临时名 保存当前 commit，再 repo start 建分支后 cherry-pick 回来。",
+      "tags": [
+        "detached",
+        "HEAD",
+        "start",
+        "游离",
+        "分支"
+      ]
+    },
+    {
+      "id": "1015",
+      "title": "删除/清理本地分支（abandon / prune）",
+      "body": "repo abandon <branch> 删除本地开发分支；若未完全合并会拒绝，确要丢弃用 repo abandon -f。repo prune 批量删除“已合并进上游”的 topic 分支，未合并的自动跳过（安全）。删除当前所在分支前，先 repo start 切到别的分支。branch/branches 分别查看单项目/全局分支。",
+      "tags": [
+        "abandon",
+        "prune",
+        "删除分支",
+        "branch",
+        "清理"
+      ]
+    },
+    {
+      "id": "1016",
+      "title": "git index.lock 报错 / git 状态异常恢复",
+      "body": "看到 “Unable to create .../index.lock: File exists” 多半是上次 git 被强杀留下锁文件。确认没有其它 git/repo 进程在跑后，删除该 project 的 .git/index.lock 再重试。避免对同一 project 同时跑 repo sync 和手敲 git 命令。详见 R1033。",
+      "tags": [
+        "index.lock",
+        "lock",
+        "git",
+        "卡住",
+        "残留"
+      ]
+    },
+    {
+      "id": "1017",
+      "title": "repo gc / repo sync 后磁盘占用大",
+      "body": "repo 的对象缓存在 .repo 下，多个 project 共享。用 repo gc 触发各仓 git gc 回收；磁盘仍紧张时，对单个大项目 git -C <project> gc --aggressive。避免频繁全量 repo sync 制造大量 loose object。gc 跳过活跃对象是正常保护，不是失败。",
+      "tags": [
+        "gc",
+        "磁盘",
+        "空间",
+        "清理",
+        "prune"
+      ]
+    },
+    {
+      "id": "1018",
+      "title": "cherry-pick / repo download 冲突处理",
+      "body": "repo download 拉取的 Gerrit patch 与本地冲突时，git 进入 cherry-pick 冲突态：手工改冲突文件 → git add → git cherry-pick --continue；想放弃用 git cherry-pick --abort（安全回到操作前）。反复冲突先 repo sync 对齐基线。详见 R1036。",
+      "tags": [
+        "cherry-pick",
+        "download",
+        "冲突",
+        "conflict",
+        "patch"
+      ]
+    }
+  ]
+}

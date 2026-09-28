@@ -1,0 +1,45 @@
+# repo AI telemetry collector -- systemd unit template
+#
+# Deploy (see contrib/collector-deploy.md for the full runbook):
+#   1. copy this file to /etc/systemd/system/repo-telemetry-collector.service
+#   2. edit paths/user in [Service] for your machine
+#   3. create /etc/repo-telemetry-collector.env (chmod 600) with:
+#        REPO_TELEMETRY_TOKEN=<random long string>
+#   4. systemctl daemon-reload && systemctl enable --now \
+#        repo-telemetry-collector
+
+[Unit]
+Description=repo AI telemetry collector (S6)
+Documentation=file:///opt/repo-ai/docs/ai-user-guide.md#35
+After=network.target
+
+[Service]
+Type=simple
+# dedicated non-privileged user:  useradd -r -s /usr/sbin/nologin repoai
+User=repoai
+Group=repoai
+# checkout of this repo (only the repoai/ package is needed at runtime)
+WorkingDirectory=/opt/repo-ai
+Environment=PYTHONUNBUFFERED=1
+# holds REPO_TELEMETRY_TOKEN; keep this file mode 0600
+EnvironmentFile=/etc/repo-telemetry-collector.env
+# empty token = open intake (the collector itself warns loudly);
+# production must set REPO_TELEMETRY_TOKEN above and distribute the same
+# value to clients as ai.telemetry.token.
+ExecStart=/usr/bin/python3 -m repoai.collector \
+    --host 0.0.0.0 --port 8080 \
+    --store /var/lib/repo-telemetry/store.sqlite --rotate-days 30
+Restart=on-failure
+RestartSec=5
+
+# sandbox hardening (systemd >= 231; drop on ancient distros)
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/repo-telemetry
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target
